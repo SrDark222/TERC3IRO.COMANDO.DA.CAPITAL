@@ -1,0 +1,124 @@
+-- Shiftlock PvP + Dot + Camera Offset + Shadow + Draggable | By Mnor DK 🥷
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Player = Players.LocalPlayer
+local UIS = game:GetService("UserInputService")
+
+-- Vars
+local States = {Off="rbxasset://textures/ui/mouseLock_off@2x.png", On="rbxasset://textures/ui/mouseLock_on@2x.png"}
+local MaxLength = 900000
+local EnabledOffset = CFrame.new(1.7,0,0) -- lado direito
+local DisabledOffset = CFrame.new(-1.7,0,0)
+local Active
+local shiftlock = false
+local dragging = false
+local dragOffset = Vector2.new()
+
+-- GUI
+local gui = Instance.new("ScreenGui", Player:WaitForChild("PlayerGui"))
+gui.Name = "ShiftlockUI"
+gui.ResetOnSpawn = false
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+-- BOTÃO
+local btn = Instance.new("ImageButton", gui)
+btn.Name = "ShiftlockButton"
+btn.Size = UDim2.new(0.07,0,0.07,0)
+btn.Position = UDim2.new(0.75,0,0.55,0)
+btn.BackgroundTransparency = 1
+btn.Image = States.Off
+
+-- DOTS CENTRAIS
+local colors = {dot=Color3.fromRGB(255,255,255), on=Color3.fromRGB(0,255,0), off=Color3.fromRGB(50,50,50)}
+
+local backDot = Instance.new("Frame", gui)
+backDot.Name="BackDot"
+backDot.Size=UDim2.new(0,8,0,8)
+backDot.AnchorPoint=Vector2.new(0.5,0.5)
+backDot.Position=UDim2.new(0.5,0,0.5,0)
+backDot.BackgroundColor3=colors.off
+backDot.BorderSizePixel=0
+Instance.new("UICorner",backDot).CornerRadius=UDim.new(1,0)
+local backDotShadow = Instance.new("UIStroke",backDot)
+backDotShadow.Color = Color3.new(0,0,0)
+backDotShadow.Thickness = 1
+backDotShadow.Transparency = 0.5
+
+local dot = Instance.new("Frame", gui)
+dot.Name="Dot"
+dot.Size=UDim2.new(0,4,0,4)
+dot.AnchorPoint=Vector2.new(0.5,0.5)
+dot.Position=UDim2.new(0.5,0,0.5,0)
+dot.BackgroundColor3=colors.dot
+dot.BorderSizePixel=0
+Instance.new("UICorner",dot).CornerRadius=UDim.new(1,0)
+local dotShadow = Instance.new("UIStroke",dot)
+dotShadow.Color=Color3.new(0,0,0)
+dotShadow.Thickness=1
+dotShadow.Transparency=0.5
+
+local circle = Instance.new("Frame", gui)
+circle.Name="Circle"
+circle.Size=UDim2.new(0,12,0,12)
+circle.AnchorPoint=Vector2.new(0.5,0.5)
+circle.Position=UDim2.new(0.5,0,0.5,0)
+circle.BackgroundTransparency=1
+circle.BorderSizePixel=1.5
+circle.BorderColor3=colors.off
+Instance.new("UICorner",circle).CornerRadius=UDim.new(1,0)
+
+-- SHIFTLOCK FUNCTION
+local function toggleShiftlock()
+    shiftlock = not shiftlock
+    local char = Player.Character or Player.CharacterAdded:Wait()
+    local root = char:WaitForChild("HumanoidRootPart")
+    btn.Image = shiftlock and States.On or States.Off
+    backDot.BackgroundColor3 = shiftlock and colors.on or colors.off
+    circle.BorderColor3 = shiftlock and colors.on or colors.off
+
+    if shiftlock then
+        Active = RunService.RenderStepped:Connect(function()
+            -- trava personagem pra olhar câmera
+            root.CFrame = CFrame.new(root.Position, root.Position + Vector3.new(workspace.CurrentCamera.CFrame.LookVector.X,0,workspace.CurrentCamera.CFrame.LookVector.Z))
+            -- aplica offset de câmera pro lado
+            workspace.CurrentCamera.CFrame = workspace.CurrentCamera.CFrame * EnabledOffset
+        end)
+    else
+        if Active then Active:Disconnect(); Active=nil end
+        workspace.CurrentCamera.CFrame = workspace.CurrentCamera.CFrame * DisabledOffset
+    end
+end
+
+-- BUTTON CLICK
+btn.MouseButton1Click:Connect(toggleShiftlock)
+
+-- BUTTON DRAG
+btn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        local mousePos = UIS:GetMouseLocation()
+        local btnPos = btn.AbsolutePosition
+        dragOffset = mousePos - Vector2.new(btnPos.X, btnPos.Y)
+    end
+end)
+
+btn.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+
+UIS.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType==Enum.UserInputType.MouseMovement or input.UserInputType==Enum.UserInputType.Touch) then
+        local mousePos = UIS:GetMouseLocation()
+        btn.Position = UDim2.new(0, mousePos.X - dragOffset.X, 0, mousePos.Y - dragOffset.Y)
+    end
+end)
+
+-- Toggle com shift key (PC)
+UIS.InputBegan:Connect(function(input,gp)
+    if gp then return end
+    if input.KeyCode==Enum.KeyCode.LeftShift then
+        toggleShiftlock()
+    end
+end)
